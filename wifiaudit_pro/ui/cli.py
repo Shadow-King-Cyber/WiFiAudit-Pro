@@ -10,7 +10,6 @@ import click
 
 from ..core.scope_manager import ScopeManager
 from ..core.audit_logger import AuditLogger
-from ..core.config import Config
 from ..scanner.passive_scanner import scan_networks, scan_networks_mock
 from ..analysis.encryption_analyzer import classify_encryption
 from ..analysis.risk_scoring import score_network, ScoringFactors
