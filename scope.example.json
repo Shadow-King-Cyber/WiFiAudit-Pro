@@ -1,0 +1,11 @@
+{
+  "authorized_by": "Authorized Auditor Name",
+  "authorization_date": "2026-01-01",
+  "networks": [
+    {
+      "bssid": "AA:BB:CC:DD:EE:FF",
+      "ssid": "MyNetwork",
+      "note": "Authorized network for security testing"
+    }
+  ]
+}

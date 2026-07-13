@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0d1117; --surface: #161b22; --border: #30363d;
+            --text: #c9d1d9; --text-muted: #8b949e;
+            --accent: #58a6ff; --critico: #f85149; --alto: #d29922;
+            --medio: #3fb950; --bajo: #8b949e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; padding: 2rem; }
+        h1 { color: var(--accent); margin-bottom: 0.5rem; }
+        .meta { color: var(--text-muted); margin-bottom: 2rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; }
+        .card h3 { color: var(--accent); margin-bottom: 0.75rem; font-size: 0.9rem; text-transform: uppercase; }
+        .card .value { font-size: 2rem; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--accent); font-size: 0.85rem; text-transform: uppercase; }
+        .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        .badge-critico { background: var(--critico); color: #fff; }
+        .badge-alto { background: var(--alto); color: #000; }
+        .badge-medio { background: var(--medio); color: #000; }
+        .badge-bajo { background: var(--bajo); color: #000; }
+        .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+        .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+        .recs { margin-top: 0.5rem; padding-left: 1.2rem; }
+        .recs li { margin-bottom: 0.3rem; color: var(--text-muted); font-size: 0.9rem; }
+        .mitre-tag { background: #1f6feb33; color: var(--accent); padding: 1px 6px; border-radius: 3px; font-size: 0.75rem; margin-right: 4px; }
+    </style>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+    <p class="meta">Generated: {{ generated_at }}</p>
+
+    <div class="grid">
+        <div class="card">
+            <h3>Total Networks</h3>
+            <div class="value">{{ summary.total_networks }}</div>
+        </div>
+        <div class="card">
+            <h3>Critical / High</h3>
+            <div class="value" style="color: var(--critico)">{{ summary.risk_distribution.get('Critico', 0) }}</div>
+            <div style="color: var(--alto); font-size: 1.2rem; margin-top: 4px;">{{ summary.risk_distribution.get('Alto', 0) }}</div>
+        </div>
+        <div class="card">
+            <h3>WPS Enabled</h3>
+            <div class="value">{{ summary.wps_enabled_count }}</div>
+        </div>
+        <div class="card">
+            <h3>Default Creds</h3>
+            <div class="value">{{ summary.default_creds_count }}</div>
+        </div>
+    </div>
+
+    <div class="charts-row">
+        <div class="chart-container">
+            <canvas id="encChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="riskChart"></canvas>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>BSSID</th>
+                <th>SSID</th>
+                <th>Ch</th>
+                <th>Encryption</th>
+                <th>Signal</th>
+                <th>WPS</th>
+                <th>Default Creds</th>
+                <th>Risk</th>
+                <th>Score</th>
+                <th>MITRE</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for net in networks %}
+            <tr>
+                <td>{{ net.bssid }}</td>
+                <td>{{ net.ssid }}</td>
+                <td>{{ net.channel }}</td>
+                <td>{{ net.encryption }}</td>
+                <td>{{ net.signal_strength }} dBm</td>
+                <td>{{ 'Yes' if net.wps_enabled else 'No' }}</td>
+                <td>{{ 'Yes' if net.default_creds_suspected else 'No' }}</td>
+                <td><span class="badge badge-{{ net.risk_level|lower }}">{{ net.risk_level }}</span></td>
+                <td>{{ net.risk_score }}</td>
+                <td>
+                    {% for t in net.mitre_techniques %}
+                    <span class="mitre-tag">{{ t.id }}</span>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        const encData = {{ summary.encryption_distribution | tojson }};
+        const riskData = {{ summary.risk_distribution | tojson }};
+
+        new Chart(document.getElementById('encChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(encData),
+                datasets: [{
+                    data: Object.values(encData),
+                    backgroundColor: ['#58a6ff','#d29922','#3fb950','#f85149','#8b949e'],
+                    borderColor: '#161b22', borderWidth: 2
+                }]
+            },
+            options: { plugins: { title: { display: true, text: 'Encryption Distribution', color: '#c9d1d9' }, legend: { labels: { color: '#c9d1d9' } } } }
+        });
+
+        new Chart(document.getElementById('riskChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(riskData),
+                datasets: [{
+                    label: 'Networks',
+                    data: Object.values(riskData),
+                    backgroundColor: ['#f85149','#d29922','#3fb950','#8b949e']
+                }]
+            },
+            options: { plugins: { title: { display: true, text: 'Risk Distribution', color: '#c9d1d9' }, legend: { display: false } }, scales: { x: { ticks: { color: '#c9d1d9' } }, y: { ticks: { color: '#c9d1d9' }, beginAtZero: true } } }
+        });
+    </script>
+</body>
+</html>
